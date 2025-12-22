@@ -90,7 +90,7 @@ export const userStorage = {
     const users = userStorage.getAll()
     const index = users.findIndex(u => u.id === id)
     if (index !== -1) {
-      users[index] = { ...users[index], ...updates }
+      users[index] = { ...users[index], ...updates } as User
       userStorage.save(users)
     }
   },
@@ -113,7 +113,7 @@ export const courseStorage = {
     const courses = courseStorage.getAll()
     const index = courses.findIndex(c => c.id === id)
     if (index !== -1) {
-      courses[index] = { ...courses[index], ...updates }
+      courses[index] = { ...courses[index], ...updates } as Course
       courseStorage.save(courses)
     }
   },
@@ -136,7 +136,7 @@ export const scheduleStorage = {
     const schedules = scheduleStorage.getAll()
     const index = schedules.findIndex(s => s.id === id)
     if (index !== -1) {
-      schedules[index] = { ...schedules[index], ...updates }
+      schedules[index] = { ...schedules[index], ...updates } as ScheduleItem
       scheduleStorage.save(schedules)
     }
   },
@@ -159,7 +159,7 @@ export const paymentStorage = {
     const payments = paymentStorage.getAll()
     const index = payments.findIndex(p => p.id === id)
     if (index !== -1) {
-      payments[index] = { ...payments[index], ...updates }
+      payments[index] = { ...payments[index], ...updates } as Payment
       paymentStorage.save(payments)
     }
   },

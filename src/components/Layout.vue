@@ -1,40 +1,42 @@
 <template>
   <n-config-provider :theme="theme">
-    <n-layout has-sider style="height: 100vh">
-      <n-layout-sider
-        bordered
-        show-trigger
-        collapse-mode="width"
-        :collapsed-width="64"
-        :width="240"
-        :native-scrollbar="false"
-      >
-        <div style="padding: 24px; text-align: center">
-          <h2 v-if="!collapsed">课程管理系统</h2>
-          <h3 v-else>课程</h3>
-        </div>
-        <n-menu
-          :collapsed="collapsed"
+    <n-message-provider>
+      <n-layout has-sider style="height: 100vh">
+        <n-layout-sider
+          bordered
+          show-trigger
+          collapse-mode="width"
           :collapsed-width="64"
-          :collapsed-icon-size="22"
-          :options="menuOptions"
-          v-model:value="activeKey"
-          @update:value="handleMenuClick"
-        />
-      </n-layout-sider>
-      <n-layout>
-        <n-layout-header bordered style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center">
-          <h2>{{ currentPageTitle }}</h2>
-          <n-switch v-model:value="isDark" @update:value="handleThemeChange">
-            <template #checked>🌙</template>
-            <template #unchecked>☀️</template>
-          </n-switch>
-        </n-layout-header>
-        <n-layout-content content-style="padding: 24px;">
-          <router-view />
-        </n-layout-content>
+          :width="240"
+          :native-scrollbar="false"
+        >
+          <div style="padding: 24px; text-align: center">
+            <h2 v-if="!collapsed">课程管理系统</h2>
+            <h3 v-else>课程</h3>
+          </div>
+          <n-menu
+            :collapsed="collapsed"
+            :collapsed-width="64"
+            :collapsed-icon-size="22"
+            :options="menuOptions"
+            v-model:value="activeKey"
+            @update:value="handleMenuClick"
+          />
+        </n-layout-sider>
+        <n-layout>
+          <n-layout-header bordered style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center">
+            <h2>{{ currentPageTitle }}</h2>
+            <n-switch v-model:value="isDark" @update:value="handleThemeChange">
+              <template #checked>🌙</template>
+              <template #unchecked>☀️</template>
+            </n-switch>
+          </n-layout-header>
+          <n-layout-content content-style="padding: 24px;">
+            <router-view />
+          </n-layout-content>
+        </n-layout>
       </n-layout>
-    </n-layout>
+    </n-message-provider>
   </n-config-provider>
 </template>
 
@@ -49,11 +51,12 @@ import {
   NLayoutContent,
   NMenu,
   NSwitch,
+  NMessageProvider,
   darkTheme
 } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
 import {
-  DashboardOutline as DashboardIcon,
+  HomeOutline as DashboardIcon,
   PeopleOutline as PeopleIcon,
   BookOutline as BookIcon,
   CalendarOutline as CalendarIcon,

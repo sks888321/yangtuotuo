@@ -91,9 +91,9 @@ const rules = {
   name: { required: true, message: '请输入课程名称', trigger: 'blur' },
   description: { required: true, message: '请输入课程描述', trigger: 'blur' },
   teacherId: { required: true, message: '请选择教师', trigger: 'change' },
-  price: { required: true, message: '请输入价格', trigger: 'blur', type: 'number' },
-  duration: { required: true, message: '请输入时长', trigger: 'blur', type: 'number' },
-  capacity: { required: true, message: '请输入容量', trigger: 'blur', type: 'number' }
+  price: { required: true, message: '请输入价格', trigger: 'blur', type: 'number' as const },
+  duration: { required: true, message: '请输入时长', trigger: 'blur', type: 'number' as const },
+  capacity: { required: true, message: '请输入容量', trigger: 'blur', type: 'number' as const }
 }
 
 const teacherOptions = computed(() => {

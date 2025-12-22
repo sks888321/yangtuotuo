@@ -18,7 +18,7 @@
       <n-grid-item>
         <n-card title="今日排课">
           <n-statistic :value="stats.todaySchedules">
-            <template #suffix">节</template>
+            <template #suffix>节</template>
           </n-statistic>
         </n-card>
       </n-grid-item>
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
 import { NSpace, NGrid, NGridItem, NCard, NStatistic, NDataTable, NTag } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { userStorage, courseStorage, scheduleStorage, paymentStorage } from '../utils/storage'
@@ -98,7 +98,7 @@ const scheduleColumns: DataTableColumns<ScheduleItem> = [
         cancelled: { text: '已取消', type: 'error' }
       }
       const status = statusMap[row.status] || { text: row.status, type: 'default' }
-      return NTag({ type: status.type as any }, () => status.text)
+      return h(NTag, { type: status.type as any }, { default: () => status.text })
     }
   }
 ]
@@ -123,7 +123,7 @@ const paymentColumns: DataTableColumns<Payment> = [
         refunded: { text: '已退款', type: 'error' }
       }
       const status = statusMap[row.status] || { text: row.status, type: 'default' }
-      return NTag({ type: status.type as any }, () => status.text)
+      return h(NTag, { type: status.type as any }, { default: () => status.text })
     }
   }
 ]

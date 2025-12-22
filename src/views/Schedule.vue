@@ -94,7 +94,7 @@ const formData = ref<any>({
 
 const rules = {
   courseId: { required: true, message: '请选择课程', trigger: 'change' },
-  studentIds: { required: true, message: '请选择学生', trigger: 'change', type: 'array' },
+  studentIds: { required: true, message: '请选择学生', trigger: 'change', type: 'array' as const },
   dateTimestamp: { required: true, message: '请选择日期', trigger: 'change' },
   startTime: { required: true, message: '请选择开始时间', trigger: 'blur' },
   endTime: { required: true, message: '请选择结束时间', trigger: 'blur' },
@@ -218,7 +218,7 @@ const handleSave = () => {
     return
   }
 
-  const date = new Date(formData.value.dateTimestamp).toISOString().split('T')[0]
+  const date = new Date(formData.value.dateTimestamp!).toISOString().split('T')[0] as string
 
   if (editingId.value) {
     scheduleStorage.update(editingId.value, {
@@ -229,15 +229,15 @@ const handleSave = () => {
   } else {
     const newSchedule: ScheduleItem = {
       id: Date.now().toString(),
-      courseId: formData.value.courseId,
-      courseName: formData.value.courseName,
-      teacherId: formData.value.teacherId,
-      teacherName: formData.value.teacherName,
-      studentIds: formData.value.studentIds,
+      courseId: formData.value.courseId!,
+      courseName: formData.value.courseName!,
+      teacherId: formData.value.teacherId!,
+      teacherName: formData.value.teacherName!,
+      studentIds: formData.value.studentIds!,
       date,
-      startTime: formData.value.startTime,
-      endTime: formData.value.endTime,
-      status: formData.value.status,
+      startTime: formData.value.startTime!,
+      endTime: formData.value.endTime!,
+      status: formData.value.status!,
       createdAt: new Date().toISOString()
     }
     scheduleStorage.add(newSchedule)

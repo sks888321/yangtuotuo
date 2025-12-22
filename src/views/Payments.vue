@@ -96,7 +96,7 @@ const formData = ref<any>({
 const rules = {
   studentId: { required: true, message: '请选择学生', trigger: 'change' },
   courseId: { required: true, message: '请选择课程', trigger: 'change' },
-  amount: { required: true, message: '请输入金额', trigger: 'blur', type: 'number' },
+  amount: { required: true, message: '请输入金额', trigger: 'blur', type: 'number' as const },
   status: { required: true, message: '请选择状态', trigger: 'change' }
 }
 
@@ -121,7 +121,7 @@ const statusOptions = [
 ]
 
 const statusFilterOptions = [
-  { label: '全部', value: null },
+  { label: '全部', value: '' },
   ...statusOptions
 ]
 
