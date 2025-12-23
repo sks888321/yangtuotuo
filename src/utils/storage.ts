@@ -1,173 +1,169 @@
-import type { User, Course, ScheduleItem, Payment } from '../types'
+// Storage Layer - 只负责文件读写操作
+// 业务逻辑API请使用 api/ 文件夹中的对应接口
 
-// Storage keys
-const STORAGE_KEYS = {
-  USERS: 'yangtuotuo_users',
-  COURSES: 'yangtuotuo_courses',
-  SCHEDULES: 'yangtuotuo_schedules',
-  PAYMENTS: 'yangtuotuo_payments'
+// Storage keys - 文件名
+export const STORAGE_FILES = {
+  TEACHERS: 'teachers.json',
+  STUDENTS: 'students.json',
+  CLASSROOMS: 'classrooms.json',
+  COURSE_TYPES: 'courseTypes.json',
+  SCHEDULES: 'schedules.json',
+  PAYMENTS: 'payments.json'
+} as const
+
+// File System Access API - 使用本地文件存储
+let directoryHandle: FileSystemDirectoryHandle | null = null
+
+// 初始化目录句柄
+async function initDirectory() {
+  if (directoryHandle) return directoryHandle
+  
+  try {
+    // 尝试从indexedDB恢复之前的目录句柄
+    const db = await openDB()
+    const handle = await getStoredHandle(db)
+    if (handle) {
+      directoryHandle = handle
+      return handle
+    }
+  } catch (error) {
+    console.log('No stored directory handle')
+  }
+  
+  return null
 }
 
-// Generic storage functions
-function getFromStorage<T>(key: string, defaultValue: T[] = []): T[] {
+// 检查是否已有存储目录
+export async function hasStorageDirectory(): Promise<boolean> {
+  try {
+    await initDirectory()
+    return directoryHandle !== null
+  } catch (error) {
+    return false
+  }
+}
+
+// 选择存储目录
+export async function selectStorageDirectory() {
+  try {
+    const handle = await (window as any).showDirectoryPicker({
+      mode: 'readwrite',
+      startIn: 'documents'
+    })
+    
+    if (handle) {
+      directoryHandle = handle
+      // 存储目录句柄到indexedDB
+      const db = await openDB()
+      await saveDirectoryHandle(db, handle)
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Failed to select directory:', error)
+    return false
+  }
+}
+
+// IndexedDB 操作 - 用于持久化目录句柄
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('YangTuoTuoDB', 1)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => resolve(request.result)
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result
+      if (!db.objectStoreNames.contains('handles')) {
+        db.createObjectStore('handles')
+      }
+    }
+  })
+}
+
+async function saveDirectoryHandle(db: IDBDatabase, handle: FileSystemDirectoryHandle) {
+  const transaction = db.transaction(['handles'], 'readwrite')
+  const store = transaction.objectStore('handles')
+  await store.put(handle, 'directory')
+}
+
+async function getStoredHandle(db: IDBDatabase): Promise<FileSystemDirectoryHandle | null> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['handles'], 'readonly')
+    const store = transaction.objectStore('handles')
+    const request = store.get('directory')
+    request.onsuccess = () => resolve(request.result || null)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+// Generic storage functions - 本地文件读写
+async function getFromStorage<T>(fileName: string, defaultValue: T[] = []): Promise<T[]> {
+  try {
+    await initDirectory()
+    
+    if (!directoryHandle) {
+      // 降级到localStorage
+      return getFromLocalStorage<T>(fileName, defaultValue)
+    }
+
+    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true })
+    const file = await fileHandle.getFile()
+    const text = await file.text()
+    
+    if (!text) return defaultValue
+    return JSON.parse(text)
+  } catch (error) {
+    console.error(`Error reading file (${fileName}):`, error)
+    // 降级到localStorage
+    return getFromLocalStorage<T>(fileName, defaultValue)
+  }
+}
+
+async function saveToStorage<T>(fileName: string, data: T[]): Promise<void> {
+  try {
+    await initDirectory()
+    
+    if (!directoryHandle) {
+      // 降级到localStorage
+      saveToLocalStorage(fileName, data)
+      return
+    }
+
+    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(JSON.stringify(data, null, 2))
+    await writable.close()
+    
+    console.log(`Saved to file: ${fileName}`)
+  } catch (error) {
+    console.error(`Error saving file (${fileName}):`, error)
+    // 降级到localStorage
+    saveToLocalStorage(fileName, data)
+  }
+}
+
+// 降级方案：使用localStorage
+function getFromLocalStorage<T>(key: string, defaultValue: T[] = []): T[] {
   try {
     const data = localStorage.getItem(key)
     return data ? JSON.parse(data) : defaultValue
   } catch (error) {
-    console.error(`Error reading from storage (${key}):`, error)
+    console.error(`Error reading from localStorage (${key}):`, error)
     return defaultValue
   }
 }
 
-function saveToStorage<T>(key: string, data: T[]): void {
+function saveToLocalStorage<T>(key: string, data: T[]): void {
   try {
     localStorage.setItem(key, JSON.stringify(data))
   } catch (error) {
-    console.error(`Error saving to storage (${key}):`, error)
+    console.error(`Error saving to localStorage (${key}):`, error)
   }
 }
 
-// Initialize with sample data if empty
-function initializeStorage() {
-  if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-    const sampleUsers: User[] = [
-      {
-        id: '1',
-        name: '张三',
-        email: 'zhangsan@example.com',
-        phone: '13800138000',
-        role: 'student',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        name: '李老师',
-        email: 'liteacher@example.com',
-        phone: '13900139000',
-        role: 'teacher',
-        createdAt: new Date().toISOString()
-      }
-    ]
-    saveToStorage(STORAGE_KEYS.USERS, sampleUsers)
-  }
-
-  if (!localStorage.getItem(STORAGE_KEYS.COURSES)) {
-    const sampleCourses: Course[] = [
-      {
-        id: '1',
-        name: '数学基础',
-        description: '小学数学基础课程',
-        teacherId: '2',
-        teacherName: '李老师',
-        price: 100,
-        duration: 60,
-        capacity: 20,
-        createdAt: new Date().toISOString()
-      }
-    ]
-    saveToStorage(STORAGE_KEYS.COURSES, sampleCourses)
-  }
-
-  if (!localStorage.getItem(STORAGE_KEYS.SCHEDULES)) {
-    saveToStorage(STORAGE_KEYS.SCHEDULES, [])
-  }
-
-  if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
-    saveToStorage(STORAGE_KEYS.PAYMENTS, [])
-  }
+// 导出底层存储API - 只负责读写文件
+export const storageAPI = {
+  read: getFromStorage,
+  write: saveToStorage
 }
 
-// User storage
-export const userStorage = {
-  getAll: (): User[] => getFromStorage<User>(STORAGE_KEYS.USERS),
-  save: (users: User[]) => saveToStorage(STORAGE_KEYS.USERS, users),
-  add: (user: User) => {
-    const users = userStorage.getAll()
-    users.push(user)
-    userStorage.save(users)
-  },
-  update: (id: string, updates: Partial<User>) => {
-    const users = userStorage.getAll()
-    const index = users.findIndex(u => u.id === id)
-    if (index !== -1) {
-      users[index] = { ...users[index], ...updates } as User
-      userStorage.save(users)
-    }
-  },
-  delete: (id: string) => {
-    const users = userStorage.getAll().filter(u => u.id !== id)
-    userStorage.save(users)
-  }
-}
-
-// Course storage
-export const courseStorage = {
-  getAll: (): Course[] => getFromStorage<Course>(STORAGE_KEYS.COURSES),
-  save: (courses: Course[]) => saveToStorage(STORAGE_KEYS.COURSES, courses),
-  add: (course: Course) => {
-    const courses = courseStorage.getAll()
-    courses.push(course)
-    courseStorage.save(courses)
-  },
-  update: (id: string, updates: Partial<Course>) => {
-    const courses = courseStorage.getAll()
-    const index = courses.findIndex(c => c.id === id)
-    if (index !== -1) {
-      courses[index] = { ...courses[index], ...updates } as Course
-      courseStorage.save(courses)
-    }
-  },
-  delete: (id: string) => {
-    const courses = courseStorage.getAll().filter(c => c.id !== id)
-    courseStorage.save(courses)
-  }
-}
-
-// Schedule storage
-export const scheduleStorage = {
-  getAll: (): ScheduleItem[] => getFromStorage<ScheduleItem>(STORAGE_KEYS.SCHEDULES),
-  save: (schedules: ScheduleItem[]) => saveToStorage(STORAGE_KEYS.SCHEDULES, schedules),
-  add: (schedule: ScheduleItem) => {
-    const schedules = scheduleStorage.getAll()
-    schedules.push(schedule)
-    scheduleStorage.save(schedules)
-  },
-  update: (id: string, updates: Partial<ScheduleItem>) => {
-    const schedules = scheduleStorage.getAll()
-    const index = schedules.findIndex(s => s.id === id)
-    if (index !== -1) {
-      schedules[index] = { ...schedules[index], ...updates } as ScheduleItem
-      scheduleStorage.save(schedules)
-    }
-  },
-  delete: (id: string) => {
-    const schedules = scheduleStorage.getAll().filter(s => s.id !== id)
-    scheduleStorage.save(schedules)
-  }
-}
-
-// Payment storage
-export const paymentStorage = {
-  getAll: (): Payment[] => getFromStorage<Payment>(STORAGE_KEYS.PAYMENTS),
-  save: (payments: Payment[]) => saveToStorage(STORAGE_KEYS.PAYMENTS, payments),
-  add: (payment: Payment) => {
-    const payments = paymentStorage.getAll()
-    payments.push(payment)
-    paymentStorage.save(payments)
-  },
-  update: (id: string, updates: Partial<Payment>) => {
-    const payments = paymentStorage.getAll()
-    const index = payments.findIndex(p => p.id === id)
-    if (index !== -1) {
-      payments[index] = { ...payments[index], ...updates } as Payment
-      paymentStorage.save(payments)
-    }
-  },
-  delete: (id: string) => {
-    const payments = paymentStorage.getAll().filter(p => p.id !== id)
-    paymentStorage.save(payments)
-  }
-}
-
-// Initialize storage on load
-initializeStorage()

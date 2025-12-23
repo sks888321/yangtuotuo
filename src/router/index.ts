@@ -12,14 +12,24 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Dashboard.vue')
   },
   {
-    path: '/users',
-    name: 'Users',
-    component: () => import('../views/Users.vue')
+    path: '/teachers',
+    name: 'Teachers',
+    component: () => import('../views/Teachers.vue')
   },
   {
-    path: '/courses',
-    name: 'Courses',
-    component: () => import('../views/Courses.vue')
+    path: '/students',
+    name: 'Students',
+    component: () => import('../views/Students.vue')
+  },
+  {
+    path: '/classrooms',
+    name: 'Classrooms',
+    component: () => import('../views/Classrooms.vue')
+  },
+  {
+    path: '/course-types',
+    name: 'CourseTypes',
+    component: () => import('../views/CourseTypes.vue')
   },
   {
     path: '/schedule',
@@ -30,6 +40,11 @@ const routes: RouteRecordRaw[] = [
     path: '/payments',
     name: 'Payments',
     component: () => import('../views/Payments.vue')
+  },
+  {
+    path: '/test',
+    name: 'Test',
+    component: () => import('../views/Test.vue')
   }
 ]
 

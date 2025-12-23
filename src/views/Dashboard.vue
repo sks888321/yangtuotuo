@@ -1,138 +1,199 @@
 <template>
   <n-space vertical :size="24">
+    <!-- 存储设置 -->
+    <n-card v-if="!hasStorageDirectory">
+      <n-space vertical>
+        <n-alert type="info" title="选择存储目录">
+          点击下方按钮选择一个本地文件夹作为数据存储目录，数据将以JSON文件形式保存。
+        </n-alert>
+        <n-button type="primary" @click="selectDirectory">
+          <template #icon>
+            <n-icon><FolderOpen /></n-icon>
+          </template>
+          选择目录
+        </n-button>
+      </n-space>
+    </n-card>
+    
+    <!-- 统计卡片 -->
     <n-grid :x-gap="24" :y-gap="24" :cols="4">
       <n-grid-item>
-        <n-card title="总用户数">
-          <n-statistic :value="stats.totalUsers">
+        <n-card>
+          <n-statistic label="老师数量" :value="stats.totalTeachers">
             <template #suffix>人</template>
+            <template #prefix>
+              <n-icon size="24" color="#18a058">
+                <School />
+              </n-icon>
+            </template>
           </n-statistic>
         </n-card>
       </n-grid-item>
       <n-grid-item>
-        <n-card title="总课程数">
-          <n-statistic :value="stats.totalCourses">
-            <template #suffix>门</template>
+        <n-card>
+          <n-statistic label="学生数量" :value="stats.totalStudents">
+            <template #suffix>人</template>
+            <template #prefix>
+              <n-icon size="24" color="#2080f0">
+                <People />
+              </n-icon>
+            </template>
           </n-statistic>
         </n-card>
       </n-grid-item>
       <n-grid-item>
-        <n-card title="今日排课">
-          <n-statistic :value="stats.todaySchedules">
+        <n-card>
+          <n-statistic label="今日排课" :value="stats.todaySchedules">
             <template #suffix>节</template>
+            <template #prefix>
+              <n-icon size="24" color="#f0a020">
+                <Calendar />
+              </n-icon>
+            </template>
           </n-statistic>
         </n-card>
       </n-grid-item>
       <n-grid-item>
-        <n-card title="待缴费">
-          <n-statistic :value="stats.pendingPayments">
-            <template #suffix>笔</template>
+        <n-card>
+          <n-statistic label="待缴费用" :value="stats.pendingPayments">
+            <template #suffix>元</template>
+            <template #prefix>
+              <n-icon size="24" color="#d03050">
+                <Cash />
+              </n-icon>
+            </template>
           </n-statistic>
         </n-card>
       </n-grid-item>
     </n-grid>
 
-    <n-card title="最近排课">
-      <n-data-table
-        :columns="scheduleColumns"
-        :data="recentSchedules"
-        :pagination="false"
-      />
-    </n-card>
-
-    <n-card title="最近缴费">
-      <n-data-table
-        :columns="paymentColumns"
-        :data="recentPayments"
-        :pagination="false"
-      />
+    <!-- 本周课程表 -->
+    <n-card title="本周课程安排">
+      <weekly-calendar />
     </n-card>
   </n-space>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
-import { NSpace, NGrid, NGridItem, NCard, NStatistic, NDataTable, NTag } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import { userStorage, courseStorage, scheduleStorage, paymentStorage } from '../utils/storage'
-import type { ScheduleItem, Payment } from '../types'
+import { ref, computed, onMounted } from 'vue'
+import { 
+  NSpace, 
+  NGrid, 
+  NGridItem, 
+  NCard, 
+  NStatistic, 
+  NAlert,
+  NButton,
+  NIcon,
+  useMessage
+} from 'naive-ui'
+import { People, Calendar, Cash, FolderOpen, School } from '@vicons/ionicons5'
+import { 
+  teacherAPI, 
+  studentAPI, 
+  scheduleAPI, 
+  paymentAPI,
+  initAllData
+} from '../api'
+import { selectStorageDirectory, hasStorageDirectory as checkStorageDirectory } from '../utils/storage'
+import WeeklyCalendar from '../components/WeeklyCalendar.vue'
+import { dataCache } from '../utils/cache'
 
-const users = ref(userStorage.getAll())
-const courses = ref(courseStorage.getAll())
-const schedules = ref(scheduleStorage.getAll())
-const payments = ref(paymentStorage.getAll())
+const message = useMessage()
+const hasStorageDirectory = ref(false)
+const loading = ref(false)
+
+const teachers = ref<any[]>([])
+const students = ref<any[]>([])
+const schedules = ref<any[]>([])
+const payments = ref<any[]>([])
 
 const stats = computed(() => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('zh-CN').replace(/\//g, '.')
   return {
-    totalUsers: users.value.length,
-    totalCourses: courses.value.length,
-    todaySchedules: schedules.value.filter(s => s.date === today).length,
-    pendingPayments: payments.value.filter(p => p.status === 'pending').length
+    totalTeachers: teachers.value.length,
+    totalStudents: students.value.length,
+    todaySchedules: schedules.value.filter(s => s.date === today && s.status === 'scheduled').length,
+    pendingPayments: payments.value.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0)
   }
 })
 
-const recentSchedules = computed(() => {
-  return schedules.value
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
-})
-
-const recentPayments = computed(() => {
-  return payments.value
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
-})
-
-const scheduleColumns: DataTableColumns<ScheduleItem> = [
-  { title: '课程名称', key: 'courseName' },
-  { title: '教师', key: 'teacherName' },
-  { title: '日期', key: 'date' },
-  { title: '时间', key: 'startTime' },
-  {
-    title: '状态',
-    key: 'status',
-    render(row) {
-      const statusMap = {
-        scheduled: { text: '已安排', type: 'info' },
-        completed: { text: '已完成', type: 'success' },
-        cancelled: { text: '已取消', type: 'error' }
-      }
-      const status = statusMap[row.status] || { text: row.status, type: 'default' }
-      return h(NTag, { type: status.type as any }, { default: () => status.text })
-    }
+async function selectDirectory() {
+  const success = await selectStorageDirectory()
+  if (success) {
+    hasStorageDirectory.value = true
+    message.success('存储目录已选择')
+    await loadData()
+  } else {
+    message.error('选择目录失败或已取消')
   }
-]
+}
 
-const paymentColumns: DataTableColumns<Payment> = [
-  { title: '学生', key: 'studentName' },
-  { title: '课程', key: 'courseName' },
-  { 
-    title: '金额', 
-    key: 'amount',
-    render(row) {
-      return `¥${row.amount}`
-    }
-  },
-  {
-    title: '状态',
-    key: 'status',
-    render(row) {
-      const statusMap = {
-        pending: { text: '待支付', type: 'warning' },
-        paid: { text: '已支付', type: 'success' },
-        refunded: { text: '已退款', type: 'error' }
-      }
-      const status = statusMap[row.status] || { text: row.status, type: 'default' }
-      return h(NTag, { type: status.type as any }, { default: () => status.text })
-    }
+async function loadData() {
+  if (loading.value) return
+  
+  // 使用缓存系统
+  if (dataCache.isTeachersLoaded() && dataCache.isStudentsLoaded() && 
+      dataCache.isSchedulesLoaded() && dataCache.isPaymentsLoaded()) {
+    teachers.value = dataCache.getTeachers()
+    students.value = dataCache.getStudents()
+    schedules.value = dataCache.getSchedules()
+    payments.value = dataCache.getPayments()
+    return
   }
-]
+  
+  try {
+    loading.value = true
+    const [teachersData, studentsData, schedulesData, paymentsData] = await Promise.all([
+      teacherAPI.getAll(),
+      studentAPI.getAll(),
+      scheduleAPI.getAll(),
+      paymentAPI.getAll()
+    ])
+    
+    teachers.value = teachersData
+    students.value = studentsData
+    schedules.value = schedulesData
+    payments.value = paymentsData
+    
+    // 更新缓存
+    dataCache.setTeachers(teachersData)
+    dataCache.setStudents(studentsData)
+    dataCache.setSchedules(schedulesData)
+    dataCache.setPayments(paymentsData)
+  } catch (error) {
+    console.error('Failed to load data:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
-onMounted(() => {
-  // Refresh data
-  users.value = userStorage.getAll()
-  courses.value = courseStorage.getAll()
-  schedules.value = scheduleStorage.getAll()
-  payments.value = paymentStorage.getAll()
+let initPromise: Promise<void> | null = null
+
+onMounted(async () => {
+  // 检查是否已经选择了存储目录
+  const hasDirectory = await checkStorageDirectory()
+  
+  if (!hasDirectory) {
+    // 检查是否支持文件系统API
+    if ('showDirectoryPicker' in window) {
+      hasStorageDirectory.value = false // 显示选择目录的提示
+      message.info('请先选择一个本地文件夹用于存储数据')
+      return // 等待用户选择目录
+    } else {
+      message.warning('浏览器不支持文件系统API，将使用localStorage')
+      hasStorageDirectory.value = true
+    }
+  } else {
+    hasStorageDirectory.value = true
+  }
+  
+  // 只初始化一次
+  if (!initPromise) {
+    initPromise = initAllData()
+  }
+  await initPromise
+  
+  await loadData()
 })
 </script>
